@@ -22,6 +22,54 @@ leaves to find it → comes back and types it. This kit makes that a one-tap rou
    the kit parses it, hands the token to *your* backend, and publishes
    `verified` / `failed`.
 
+## How it works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant App as Your app + MailHandoffKit
+    participant BE as Your backend
+    participant Mail as Mail app / inbox
+
+    U->>App: reaches the verify screen
+    App->>App: beginVerification(for: email)<br/>PKCE verifier stored on device
+    App->>BE: request code + link (sends code_challenge)
+    BE->>Mail: email — 6-digit code + https://app/auth/verify?token=…
+    U->>App: taps "Open Mail app"
+    App->>Mail: openMail(for:) — Gmail→Gmail app, Outlook→Outlook,<br/>no app→webmail, unknown domain→Apple Mail
+    U->>Mail: opens the email, taps the link
+    Mail-->>App: iOS reopens the app · .onOpenURL → handle(url)
+    App->>App: parse · host-pin · bound-check · buffer the token
+    U->>App: verify screen visible → verifyPending()
+    App->>BE: EmailVerifying.verify(token, codeVerifier, email)
+    BE-->>App: 200 verified · 410 expired · 403 wrong account
+    App-->>U: verified ✓   (or failed)
+```
+
+### What's the kit vs. what's yours
+
+```mermaid
+flowchart LR
+    subgraph YOURS["Your app — the only host-specific code"]
+        cfg["MailFlowConfiguration<br/>scheme · domain · paths · token rules"]
+        api["EmailVerifying<br/>your one API call"]
+        ui["Verify screen<br/>observes verification state"]
+    end
+    subgraph KIT["MailHandoffKit — drop-in, no host knowledge"]
+        ctl["MailFlowController<br/>@MainActor · the one object you talk to"]
+        route["MailRouter<br/>email domain → mail app / webmail"]
+        parse["EmailVerificationLink<br/>total parser + OpaqueToken"]
+        sec["PKCE + VerifierStore<br/>device binding, fail-closed"]
+    end
+    cfg --> ctl
+    api --> ctl
+    ui <--> ctl
+    ctl --> route
+    ctl --> parse
+    ctl --> sec
+```
+
 ## Security model
 
 **Built into the kit:**
