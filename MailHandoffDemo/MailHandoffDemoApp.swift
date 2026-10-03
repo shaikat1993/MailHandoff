@@ -20,7 +20,9 @@ extension MailFlowConfiguration {
 struct DemoVerifier: EmailVerifying {
     var outcome: Result<Void, EmailVerificationError> = .success(())
     var delay: Duration = .seconds(1)
-    func verify(token: OpaqueToken, codeVerifier: String, expectedEmail: String) async throws {
+    func verify(token: OpaqueToken,
+                codeVerifier: String,
+                expectedEmail: String) async throws {
         try await Task.sleep(for: delay)
         if case .failure(let error) = outcome { throw error }
     }
@@ -28,7 +30,8 @@ struct DemoVerifier: EmailVerifying {
 
 @main
 struct MailHandoffDemoApp: App {
-    @StateObject private var mailFlow = MailFlowController(config: .demo, verifier: DemoVerifier())
+    @StateObject private var mailFlow = MailFlowController(config: .demo,
+                                                           verifier: DemoVerifier())
 
     init() {
         #if DEBUG
